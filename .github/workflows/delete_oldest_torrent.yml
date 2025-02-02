@@ -1,81 +1,60 @@
-name: Auto-Delete Oldest Torrent from Torbox
+import requests
+import time
 
-on:
-  schedule:
-    - cron: "0 * * * *"  # Runs every hour
-  workflow_dispatch:  # Allows manual execution
+# Replace with your actual API token
+API_TOKEN = "YOUR_API_KEY"
+BASE_URL = "https://torbox.net/api/v1"
 
-jobs:
-  delete_oldest_torrent:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+def get_torrents():
+    """Fetch the list of torrents."""
+    url = f"{BASE_URL}/torrents?api_token={API_TOKEN}"
+    response = requests.get(url)
+    if response.status_code == 200:
+        return response.json()  # Returns a list of torrents
+    else:
+        print("Error fetching torrents:", response.text)
+        return []
 
-      - name: Install Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
+def delete_torrent(torrent_id):
+    """Delete a torrent by its ID."""
+    url = f"{BASE_URL}/torrents/{torrent_id}?api_token={API_TOKEN}"
+    response = requests.delete(url)
+    if response.status_code == 200:
+        print(f"Deleted torrent ID: {torrent_id}")
+    else:
+        print("Error deleting torrent:", response.text)
 
-      - name: Install Dependencies
-        run: pip install requests
+def auto_delete_oldest():
+    """Deletes the oldest torrent if more than 10 are 'Download Ready'."""
+    torrents = get_torrents()
+    
+    # Filter torrents that are in "Download Ready" state
+    download_ready_torrents = [t for t in torrents if t.get("status") == "Download Ready"]
 
-      - name: Run Cleanup Script
-        env:
-          TORBOX_API_KEY: ${{ secrets.TORBOX_API_KEY }}
-        run: |
-          import requests
-          import os
+    if len(download_ready_torrents) > 10:
+        # Ensure the latest updated torrent is not deleted
+        # Sort torrents by last updated time (oldest first)
+        download_ready_torrents.sort(key=lambda t: t["last_updated_at"])
+        
+        # Get the most recently updated torrent
+        latest_torrent = download_ready_torrents[-1]
+        
+        # If there's only one torrent, don't delete it
+        if len(download_ready_torrents) == 1:
+            print("Only one torrent available, nothing to delete.")
+            return
+        
+        # Delete the oldest torrent that is not the latest updated one
+        oldest_torrent = download_ready_torrents[0]
+        
+        # Make sure the oldest isn't the latest updated torrent
+        if oldest_torrent["id"] != latest_torrent["id"]:
+            print(f"Deleting oldest torrent: {oldest_torrent['name']}")
+            delete_torrent(oldest_torrent["id"])
+        else:
+            print("Skipping deletion, the latest torrent is the oldest one.")
+    else:
+        print("No need to delete, under 10 torrents.")
 
-          API_TOKEN = os.getenv("TORBOX_API_KEY")
-          BASE_URL = "https://torbox.net/api/v1"
-
-          def get_torrents():
-              """Fetch the list of torrents."""
-              url = f"{BASE_URL}/torrents?api_token={API_TOKEN}"
-              response = requests.get(url)
-              if response.status_code == 200:
-                  return response.json()  # Returns a list of torrents
-              else:
-                  print("Error fetching torrents:", response.text)
-                  return []
-
-          def delete_torrent(torrent_id, name):
-              """Delete a torrent by its ID."""
-              url = f"{BASE_URL}/torrents/{torrent_id}?api_token={API_TOKEN}"
-              response = requests.delete(url)
-              if response.status_code == 200:
-                  print(f"✅ Deleted: {name} (ID: {torrent_id})")
-              else:
-                  print("❌ Error deleting:", response.text)
-
-          def auto_delete_oldest():
-              """Deletes the oldest torrent if more than 10 are 'Download Ready'."""
-              torrents = get_torrents()
-              
-              # Filter torrents that are in "Download Ready" state
-              download_ready_torrents = [t for t in torrents if t.get("status") == "Download Ready"]
-
-              if len(download_ready_torrents) > 10:
-                  # Sort torrents by their added date (oldest first)
-                  sorted_torrents = sorted(download_ready_torrents, key=lambda t: t["added_at"])
-                  
-                  if len(sorted_torrents) > 1:  # Ensure we don't delete the only torrent
-                      oldest_torrent = sorted_torrents[0]
-                      latest_torrent = sorted_torrents[-1]
-
-                      print(f"ℹ️ Oldest Torrent: {oldest_torrent['name']}")
-                      print(f"ℹ️ Latest Torrent: {latest_torrent['name']}")
-
-                      # Ensure we don't delete the most recent torrent
-                      if oldest_torrent["id"] != latest_torrent["id"]:
-                          print(f"🗑 Deleting: {oldest_torrent['name']}")
-                          delete_torrent(oldest_torrent["id"], oldest_torrent["name"])
-                      else:
-                          print("🚫 Skipping deletion: Only one torrent remains.")
-                  else:
-                      print("🚫 Only one torrent present, skipping deletion.")
-              else:
-                  print("✅ No need to delete, under 10 torrents.")
-
-          auto_delete_oldest()
+# Run the script
+auto_delete_oldest()
