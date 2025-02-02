@@ -1,8 +1,15 @@
 import requests
 import time
 
-# Replace with your actual API token
-API_TOKEN = "YOUR_API_KEY"
+import os
+
+# Get API token from environment variable
+API_TOKEN = os.getenv("API_KEY")
+
+# Ensure API token is not empty
+if not API_TOKEN:
+    raise ValueError("API_KEY environment variable is not set. Make sure you have added it to GitHub Secrets.")
+
 BASE_URL = "https://torbox.net/api/v1"
 
 def get_torrents():
