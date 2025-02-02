@@ -31,7 +31,7 @@ def auto_delete_oldest():
     # Filter torrents that are in "Download Ready" state
     download_ready_torrents = [t for t in torrents if t.get("status") == "Download Ready"]
 
-    if len(download_ready_torrents) > 10:
+    if len(download_ready_torrents) > 5:
         # Ensure the latest updated torrent is not deleted
         # Sort torrents by last updated time (oldest first)
         download_ready_torrents.sort(key=lambda t: t["last_updated_at"])
