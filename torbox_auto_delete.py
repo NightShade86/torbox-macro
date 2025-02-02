@@ -4,7 +4,7 @@ import time
 import os
 
 # Get API token from environment variable
-API_TOKEN = os.getenv("3b1e6480-a414-43c2-ad41-01b618fc3a4f")
+API_TOKEN = os.getenv("API_KEY")
 
 # Ensure API token is not empty
 if not API_TOKEN:
