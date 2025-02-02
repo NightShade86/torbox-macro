@@ -27,4 +27,3 @@ jobs:
         python torbox_auto_delete.py
       env:
         API_KEY: ${{ secrets.TORBOX_API_KEY }}
-c
